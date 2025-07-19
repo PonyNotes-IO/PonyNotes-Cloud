@@ -1,0 +1,26 @@
+# AppFlowy Cloud - Basic deployment with essential services only
+
+services:
+  nginx:
+    restart: on-failure
+    image: nginx
+    ports:
+      - "8081:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - redis
+
+  redis:
+    restart: on-failure
+    image: redis
+
+  # Simple test service to verify nginx proxy
+  test-service:
+    restart: on-failure
+    image: nginx
+    volumes:
+      - ./test-html:/usr/share/nginx/html
+    command: >
+      sh -c "echo '<html><body><h1>AppFlowy-Cloud Admin Interface</h1><p>This is a test page for the admin interface.</p><ul><li><a href=\"/api\">API Endpoints</a></li><li><a href=\"/health\">Health Check</a></li><li><a href=\"/metrics\">Metrics</a></li></ul></body></html>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'" 
