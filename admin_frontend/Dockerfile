@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # User should build from parent directory
 
 FROM lukemathwalker/cargo-chef:latest-rust-1.86 as chef

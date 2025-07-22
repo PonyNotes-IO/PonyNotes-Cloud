@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM lukemathwalker/cargo-chef:latest-rust-1.86 as chef
 
 # Set the initial working directory
