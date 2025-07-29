@@ -39,7 +39,12 @@ services:
       - API_EXTERNAL_URL=${API_EXTERNAL_URL:-https://api.xiaomabiji.com}
       - DATABASE_URL=${GOTRUE_DATABASE_URL:-postgres://postgres:password@host.docker.internal:5432/postgres}
       - PORT=9999
-      - GOTRUE_MAILER_AUTOCONFIRM=true
+      - GOTRUE_MAILER_AUTOCONFIRM=false
+      - GOTRUE_SMTP_HOST=smtp.qiye.aliyun.com
+      - GOTRUE_SMTP_PORT=465
+      - GOTRUE_SMTP_USER=support@xiaomabiji.com
+      - GOTRUE_SMTP_PASS=Xiaomabiji@123
+      - GOTRUE_SMTP_ADMIN_EMAIL=support@xiaomabiji.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

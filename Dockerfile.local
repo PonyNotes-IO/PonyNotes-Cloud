@@ -1,0 +1,8 @@
+FROM rust:1.86 as builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release --bin appflowy_cloud
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY --from=builder /app/target/release/appflowy_cloud /usr/local/bin/
+CMD ["appflowy_cloud"]
