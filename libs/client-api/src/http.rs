@@ -349,29 +349,7 @@ impl Client {
       .verify(&VerifyParams {
         email: email.to_owned(),
         token: passcode.to_owned(),
-        type_: VerifyType::Signup,
-      })
-      .await?;
-    let _ = self.verify_token_cloud(&response.access_token).await?;
-    self.token.write().set(response.clone());
-    Ok(response)
-  }
-
-  /// Verify signup with passcode (OTP)
-  ///
-  /// User will receive an email with a passcode after signup.
-  #[instrument(level = "debug", skip_all, err)]
-  pub async fn verify_signup_with_passcode(
-    &self,
-    email: &str,
-    passcode: &str,
-  ) -> Result<GotrueTokenResponse, AppResponseError> {
-    let response = self
-      .gotrue_client
-      .verify(&VerifyParams {
-        email: email.to_owned(),
-        token: passcode.to_owned(),
-        type_: VerifyType::Signup,
+        type_: VerifyType::MagicLink,
       })
       .await?;
     let _ = self.verify_token_cloud(&response.access_token).await?;

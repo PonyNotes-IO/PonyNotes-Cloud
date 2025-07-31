@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM golang as base
 WORKDIR /go/src/supabase
 RUN git clone https://github.com/AppFlowy-IO/auth.git --depth 1 --branch 0.8.0

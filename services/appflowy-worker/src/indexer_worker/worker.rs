@@ -39,10 +39,10 @@ pub async fn run_background_indexer(
     return;
   }
 
-  if config.open_ai_config.is_none() && config.azure_ai_config.is_none() {
-    error!("OpenAI API key is not set. Stop background indexer");
-    return;
-  }
+  // if config.open_ai_config.is_none() && config.azure_ai_config.is_none() {
+  //   error!("OpenAI API key is not set. Stop background indexer");
+  //   return;
+  // }
 
   let indexer_provider = IndexerProvider::new();
   info!("Starting background indexer...");

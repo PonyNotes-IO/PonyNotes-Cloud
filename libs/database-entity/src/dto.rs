@@ -1320,6 +1320,7 @@ pub struct MentionableWorkspaceMemberOrGuest {
   pub role: AFRole,
   pub avatar_url: Option<String>,
   pub cover_image_url: Option<String>,
+  pub custom_image_url: Option<String>,
   pub description: Option<String>,
 }
 
@@ -1336,6 +1337,7 @@ impl From<MentionableWorkspaceMemberOrGuest> for MentionablePerson {
       },
       avatar_url: val.avatar_url,
       cover_image_url: val.cover_image_url,
+      custom_image_url: val.custom_image_url,
       description: val.description,
       invited: false,
     }
@@ -1349,6 +1351,7 @@ pub struct MentionableWorkspaceMemberOrGuestWithLastMentionedTime {
   pub role: AFRole,
   pub avatar_url: Option<String>,
   pub cover_image_url: Option<String>,
+  pub custom_image_url: Option<String>,
   pub description: Option<String>,
   pub last_mentioned_at: Option<DateTime<Utc>>,
 }
@@ -1368,6 +1371,7 @@ impl From<MentionableWorkspaceMemberOrGuestWithLastMentionedTime>
       },
       avatar_url: val.avatar_url,
       cover_image_url: val.cover_image_url,
+      custom_image_url: val.custom_image_url,
       description: val.description,
       invited: false,
       last_mentioned_at: val.last_mentioned_at,
@@ -1380,6 +1384,7 @@ pub struct WorkspaceMemberProfile {
   pub name: String,
   pub avatar_url: Option<String>,
   pub cover_image_url: Option<String>,
+  pub custom_image_url: Option<String>,
   pub description: Option<String>,
 }
 
@@ -1391,6 +1396,7 @@ pub struct MentionablePerson {
   pub role: MentionablePersonType,
   pub avatar_url: Option<String>,
   pub cover_image_url: Option<String>,
+  pub custom_image_url: Option<String>,
   pub description: Option<String>,
   pub invited: bool,
 }
@@ -1403,6 +1409,7 @@ pub struct MentionablePersonWithLastMentionedTime {
   pub role: MentionablePersonType,
   pub avatar_url: Option<String>,
   pub cover_image_url: Option<String>,
+  pub custom_image_url: Option<String>,
   pub description: Option<String>,
   pub invited: bool,
   pub last_mentioned_at: Option<DateTime<Utc>>,
@@ -1437,6 +1444,32 @@ pub enum MentionablePersonType {
 pub struct PageMentionUpdate {
   pub person_id: Uuid,
   pub block_id: Option<String>,
+  pub require_notification: bool,
+  // Client to provide view name as, at the time that the mention is created,
+  // the view might not have been in sync with the server side copy of the folder collab.
+  // In addition, we want to capture the view name at the time of the mention creation, in case
+  // it gets modified/deleted afterwards.
+  pub view_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PageMentionNotification {
+  pub workspace_name: String,
+  pub workspace_id: Uuid,
+  pub view_id: Uuid,
+  pub view_name: String,
+  pub mentioner_name: String,
+  pub mentioner_avatar_url: Option<String>,
+  pub mentioned_at: DateTime<Utc>,
+  pub mentioned_person_id: Uuid,
+  pub mentioned_person_name: String,
+  pub mentioned_person_email: String,
+  pub block_id: Option<String>,
+}
+
+pub struct ProcessedPageMentionNotification {
+  pub view_id: Uuid,
+  pub person_id: Uuid,
 }
 
 #[cfg(test)]
