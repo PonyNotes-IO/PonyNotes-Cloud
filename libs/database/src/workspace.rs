@@ -1910,6 +1910,7 @@ pub async fn select_workspace_mentionable_members_or_guests<
         awm.role_id AS "role!",
         COALESCE(awmp.avatar_url, au.metadata ->> 'icon_url') AS "avatar_url",
         awmp.cover_image_url,
+        awmp.custom_image_url,
         awmp.description
       FROM af_workspace_member awm
       JOIN af_user au ON awm.uid = au.uid
@@ -1950,6 +1951,7 @@ pub async fn select_workspace_mentionable_members_or_guests_with_last_mentioned_
         awm.role_id AS "role!",
         COALESCE(awmp.avatar_url, au.metadata ->> 'icon_url') AS "avatar_url",
         awmp.cover_image_url,
+        awmp.custom_image_url,
         awmp.description,
         lm.last_mentioned_at
       FROM af_workspace_member awm
@@ -1985,6 +1987,7 @@ pub async fn select_workspace_mentionable_member_or_guest_by_uuid<
         awm.role_id AS "role!",
         COALESCE(awmp.avatar_url, au.metadata ->> 'icon_url') AS "avatar_url",
         awmp.cover_image_url,
+        awmp.custom_image_url,
         awmp.description
       FROM af_workspace_member awm
       JOIN af_user au ON awm.uid = au.uid
@@ -2009,12 +2012,13 @@ pub async fn upsert_workspace_member_profile<'a, E: Executor<'a, Database = Post
 ) -> Result<(), AppError> {
   sqlx::query!(
     r#"
-      INSERT INTO af_workspace_member_profile (workspace_id, uid, name, avatar_url, cover_image_url, description)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO af_workspace_member_profile (workspace_id, uid, name, avatar_url, cover_image_url, custom_image_url, description)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (workspace_id, uid) DO UPDATE
       SET name = EXCLUDED.name,
           avatar_url = EXCLUDED.avatar_url,
           cover_image_url = EXCLUDED.cover_image_url,
+          custom_image_url = EXCLUDED.custom_image_url,
           description = EXCLUDED.description
     "#,
     workspace_id,
@@ -2022,6 +2026,7 @@ pub async fn upsert_workspace_member_profile<'a, E: Executor<'a, Database = Post
     updated_profile.name,
     updated_profile.avatar_url,
     updated_profile.cover_image_url,
+    updated_profile.custom_image_url,
     updated_profile.description
   )
   .execute(executor)
@@ -2061,18 +2066,22 @@ pub async fn upsert_page_mention<'a, E: Executor<'a, Database = Postgres>>(
 ) -> Result<(), AppError> {
   sqlx::query!(
     r#"
-      INSERT INTO af_page_mention (workspace_id, view_id, person_id, block_id, mentioned_by, mentioned_at)
-      VALUES ($1, $2, $3, $4, $5, current_timestamp)
+      INSERT INTO af_page_mention (workspace_id, view_id, view_name, person_id, block_id, mentioned_by, mentioned_at, require_notification)
+      VALUES ($1, $2, $3, $4, $5, $6, current_timestamp, $7)
       ON CONFLICT (workspace_id, view_id, person_id) DO UPDATE
       SET mentioned_by = EXCLUDED.mentioned_by,
           mentioned_at = EXCLUDED.mentioned_at,
-          block_id = EXCLUDED.block_id
+          block_id = EXCLUDED.block_id,
+          require_notification = EXCLUDED.require_notification,
+          notified = false
     "#,
     workspace_id,
     view_id,
+    update.view_name,
     update.person_id,
     update.block_id,
     uid,
+    update.require_notification,
   )
   .execute(executor)
   .await?;

@@ -22,6 +22,3 @@ flake.lock
 **/.env.*
 
 docker-compose.override.yml
-# SSL certificates
-nginx/ssl/*.crt
-nginx/ssl/*.key

@@ -127,7 +127,6 @@ pub struct CreateSSOProviderParams {
 pub enum VerifyType {
   Recovery,
   MagicLink,
-  Signup,
 }
 
 #[derive(Deserialize, Serialize)]
