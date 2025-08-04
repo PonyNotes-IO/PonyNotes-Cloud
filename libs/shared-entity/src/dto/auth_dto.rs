@@ -71,3 +71,9 @@ pub struct DeleteUserQuery {
   pub provider_access_token: Option<String>,
   pub provider_refresh_token: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserAuthInfo {
+  pub exists: bool,
+  pub has_custom_password: bool,
+}

@@ -1,7 +1,7 @@
 use crate::api::util::client_version_from_headers;
 use crate::biz::authentication::jwt::{Authorization, UserUuid};
 use crate::biz::user::user_delete::delete_user;
-use crate::biz::user::user_info::{get_profile, get_user_workspace_info, update_user};
+use crate::biz::user::user_info::{get_profile, get_user_workspace_info, update_user, get_user_auth_info};
 use crate::biz::user::user_verify::verify_token;
 use crate::state::AppState;
 use actix_web::web::{Data, Json};
@@ -9,9 +9,15 @@ use actix_web::{web, Scope};
 use actix_web::{HttpRequest, Result};
 use database_entity::dto::{AFUserProfile, AFUserWorkspaceInfo};
 use semver::Version;
-use shared_entity::dto::auth_dto::{DeleteUserQuery, SignInTokenResponse, UpdateUserParams};
+use shared_entity::dto::auth_dto::{DeleteUserQuery, SignInTokenResponse, UpdateUserParams, UserAuthInfo};
 use shared_entity::response::AppResponseError;
 use shared_entity::response::{AppResponse, JsonAppResponse};
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+pub struct AuthInfoQuery {
+  pub email: String,
+}
 
 pub fn user_scope() -> Scope {
   web::scope("/api/user")
@@ -19,6 +25,7 @@ pub fn user_scope() -> Scope {
     .service(web::resource("/update").route(web::post().to(update_user_handler)))
     .service(web::resource("/profile").route(web::get().to(get_user_profile_handler)))
     .service(web::resource("/workspace").route(web::get().to(get_user_workspace_info_handler)))
+    .service(web::resource("/auth-info").route(web::get().to(get_user_auth_info_handler)))
     .service(web::resource("").route(web::delete().to(delete_user_handler)))
 }
 
@@ -61,6 +68,18 @@ async fn get_user_workspace_info_handler(
 
   let info = get_user_workspace_info(&state.pg_pool, &uuid, exclude_guest).await?;
   Ok(AppResponse::Ok().with_data(info).into())
+}
+
+#[tracing::instrument(skip(state), err)]
+async fn get_user_auth_info_handler(
+  query: web::Query<AuthInfoQuery>,
+  state: Data<AppState>,
+) -> Result<JsonAppResponse<UserAuthInfo>> {
+  let email = &query.email;
+  let auth_info = get_user_auth_info(&state.pg_pool, email)
+    .await
+    .map_err(AppResponseError::from)?;
+  Ok(AppResponse::Ok().with_data(auth_info).into())
 }
 
 #[tracing::instrument(skip(state, auth, payload), err)]

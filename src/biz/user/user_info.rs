@@ -5,9 +5,9 @@ use database::workspace::{
 };
 use database_entity::dto::{AFUserProfile, AFUserWorkspaceInfo, AFWorkspace};
 use serde_json::json;
-use shared_entity::dto::auth_dto::UpdateUserParams;
+use shared_entity::dto::auth_dto::{UpdateUserParams, UserAuthInfo};
 use shared_entity::response::AppResponseError;
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -83,4 +83,36 @@ pub async fn update_user(
 ) -> anyhow::Result<(), AppResponseError> {
   let metadata = params.metadata.map(|m| json!(m.into_inner()));
   Ok(database::user::update_user(pg_pool, &user_uuid, params.name, params.email, metadata).await?)
+}
+
+pub async fn get_user_auth_info(
+  pg_pool: &PgPool,
+  email: &str,
+) -> Result<UserAuthInfo, AppError> {
+  let row = sqlx::query(
+    r#"
+    SELECT EXISTS(
+      SELECT 1 FROM auth.users WHERE email = $1 AND deleted_at IS NULL
+    ) as user_exists,
+    COALESCE(
+      (SELECT is_non_default_password FROM auth.users WHERE email = $1 AND deleted_at IS NULL),
+      false
+    ) as has_custom_password
+    "#
+  )
+  .bind(email)
+  .fetch_one(pg_pool)
+  .await
+  .map_err(|err| {
+    tracing::error!("Failed to query user auth info: {}", err);
+    AppError::Internal(anyhow::anyhow!("Failed to query user auth info"))
+  })?;
+
+  let user_exists: bool = row.try_get("user_exists").unwrap_or(false);
+  let has_custom_password: bool = row.try_get("has_custom_password").unwrap_or(false);
+
+  Ok(UserAuthInfo {
+    exists: user_exists,
+    has_custom_password,
+  })
 }
