@@ -113,6 +113,9 @@ services:
       - APPFLOWY_S3_BUCKET=${APPFLOWY_S3_BUCKET:-appflowy}
       - APPFLOWY_ACCESS_CONTROL=${APPFLOWY_ACCESS_CONTROL:-false}
       - APPFLOWY_DATABASE_MAX_CONNECTIONS=${APPFLOWY_DATABASE_MAX_CONNECTIONS:-10}
+      # AI Service Configuration
+      - AI_SERVER_PORT=${AI_SERVER_PORT:-5001}
+      - AI_SERVER_HOST=${AI_SERVER_HOST:-ai}
     ports:
       - 8000:8000
     depends_on:
@@ -120,6 +123,51 @@ services:
         condition: service_healthy
       gotrue:
         condition: service_started
+      ai:
+        condition: service_started
+
+  ai:
+    restart: on-failure
+    image: appflowyinc/appflowy_ai:${APPFLOWY_AI_VERSION:-latest}
+    ports:
+      - "5001:5001"
+    environment:
+      # 使用通义千问的API密钥，因为它是sk-格式，与OpenAI兼容
+      - OPENAI_API_KEY=${AI_QWEN_API_KEY}
+      # 使用通义千问的API base来兼容OpenAI格式
+      - OPENAI_API_BASE=${AI_QWEN_API_BASE}
+      - APPFLOWY_AI_SERVER_PORT=${AI_SERVER_PORT}
+      - APPFLOWY_AI_DATABASE_URL=${AI_DATABASE_URL}
+      - APPFLOWY_AI_REDIS_URL=${AI_REDIS_URL}
+      - AI_APPFLOWY_BUCKET_NAME=${AI_APPFLOWY_BUCKET_NAME}
+      - AI_APPFLOWY_HOST=${AI_APPFLOWY_HOST}
+      - AI_USE_MINIO=${APPFLOWY_S3_USE_MINIO}
+      - AI_MINIO_URL=${AI_MINIO_URL}
+      - AI_AWS_ACCESS_KEY_ID=${APPFLOWY_S3_ACCESS_KEY}
+      - AI_AWS_SECRET_ACCESS_KEY=${APPFLOWY_S3_SECRET_KEY}
+      # DeepSeek R1 V3 Configuration
+      - DEEPSEEK_API_KEY=${AI_DEEPSEEK_API_KEY}
+      - DEEPSEEK_API_BASE=${AI_DEEPSEEK_API_BASE:-https://api.deepseek.com}
+      - DEEPSEEK_MODEL_NAME=${AI_DEEPSEEK_MODEL_NAME:-DeepSeek R1 V3}
+      - ENABLE_DEEPSEEK=true
+      # 通义千问 Configuration
+      - QWEN_API_KEY=${AI_QWEN_API_KEY}
+      - QWEN_API_BASE=${AI_QWEN_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - QWEN_MODEL_NAME=${AI_QWEN_MODEL_NAME:-qwen-max}
+      - ENABLE_QWEN=true
+      # 豆包 Configuration
+      - DOUBAO_API_KEY=${AI_DOUBAO_API_KEY}
+      - DOUBAO_API_BASE=${AI_DOUBAO_API_BASE:-https://ark.cn-beijing.volces.com/api/v3}
+      - DOUBAO_MODEL_NAME=${AI_DOUBAO_MODEL_NAME:-doubao-pro-4k}
+      - ENABLE_DOUBAO=true
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - default
 
   pgadmin:
     restart: on-failure
