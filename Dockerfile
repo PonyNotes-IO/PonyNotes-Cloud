@@ -32,7 +32,7 @@ RUN if [ "$PROFILE" = "release" ]; then \
     fi
 
 COPY . .
-ENV SQLX_OFFLINE true
+ENV SQLX_OFFLINE false
 
 # Build the project
 RUN echo "Building with profile: ${PROFILE}, features: ${FEATURES}, "

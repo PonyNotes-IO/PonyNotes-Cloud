@@ -1,0 +1,166 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.92s
+     Running `target/debug/appflowy_cloud`
+AppFlowy Cloud with RUST_LOG=info
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mPreparing to run database migrations...[0m
+    [2;3mat[0m src/application.rs:192
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mConnecting to postgres database with setting: DatabaseSetting { pg_conn_opts: PgConnectOptions { host: "localhost", port: 5432, socket: None, username: "postgres", password: Some("********"), database: Some("postgres"), ssl_mode: Prefer, ssl_root_cert: None, ssl_client_cert: None, ssl_client_key: None, statement_cache_capacity: 100, application_name: None, log_settings: LogSettings { statements_level: Debug, slow_statements_level: Warn, slow_statements_duration: 1s }, extra_float_digits: Some("2"), options: None }, require_ssl: false, max_connections: 40 }[0m
+    [2;3mat[0m src/application.rs:539
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mrelation "_sqlx_migrations" already exists, skipping[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/sqlx-postgres-0.8.5/src/connection/stream.rs:185
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mSetting up S3 bucket...[0m
+    [2;3mat[0m src/application.rs:197
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mBucket already exists[0m
+    [2;3mat[0m src/application.rs:507
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mSetting up Published Collab storage...[0m
+    [2;3mat[0m src/application.rs:210
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mUsing Postgres as the Published Collab storage backend ...[0m
+    [2;3mat[0m src/application.rs:214
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mConnecting to GoTrue...[0m
+    [2;3mat[0m src/application.rs:231
+
+  [2m2025-08-02 23:34:12[0m [32m INFO[0m  [32mConnecting to GoTrue with setting: GoTrueSetting { base_url: "http://localhost:9999", jwt_secret: Secret([REDACTED alloc::string::String]), service_role: "service_role" }[0m
+    [2;3mat[0m src/application.rs:559
+
+  [2m2025-08-02 23:34:13[0m [31mERROR[0m  [1;31merror[0m[31m: got error code: 502 Bad Gateway, body: [0m
+    [2;3mat[0m libs/gotrue/src/api.rs:37
+    [2;3min[0m [1mhealth[0m
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mConnecting to Redis...[0m
+    [2;3mat[0m src/application.rs:236
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mConnecting to redis with uri: redis://localhost:6379[0m
+    [2;3mat[0m src/application.rs:422
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mstared Redis stream router with 60 workers[0m
+    [2;3mat[0m libs/collab-stream/src/stream_router.rs:113
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mSetup AppFlowy AI: http://localhost:5001[0m
+    [2;3mat[0m src/application.rs:244
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mCreating AppFlowyAIClient with url: http://localhost:5001[0m
+    [2;3mat[0m libs/appflowy-ai-client/src/client.rs:30
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mSetting up Pg listeners...[0m
+    [2;3mat[0m src/application.rs:247
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32musing default environment variable APPFLOWY_ACCESS_CONTROL_REDIS_CACHE_ENABLED:false[0m
+    [2;3mat[0m libs/infra/src/env_util.rs:7
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mSetting up access controls, is_enable: true, use redis cache: false[0m
+    [2;3mat[0m src/application.rs:255
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32m[access control v2]: Policy update processor started[0m
+    [2;3mat[0m libs/access-control/src/casbin/enforcer_v2.rs:139
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32musing default environment variable APPFLOWY_SMALL_COLLAB_SIZE:4096[0m
+    [2;3mat[0m services/appflowy-collaborate/src/config.rs:142
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32musing default environment variable APPFLOWY_SMALL_COLLAB_SIZE:4096[0m
+    [2;3mat[0m services/appflowy-collaborate/src/config.rs:142
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mConnecting to mailer with setting: MailerSetting { smtp_host: "smtp.gmail.com", smtp_port: 465, smtp_username: "notify@appflowy.io", smtp_email: "notify@appflowy.io", smtp_password: Secret([REDACTED alloc::string::String]), smtp_tls_kind: "wrapper" }[0m
+    [2;3mat[0m src/application.rs:524
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mSetting up Indexer scheduler...[0m
+    [2;3mat[0m src/application.rs:337
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mUsing Azure OpenAI API[0m
+    [2;3mat[0m libs/indexer/src/vector/embedder.rs:47
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mIndexer is enabled: true[0m
+    [2;3mat[0m libs/indexer/src/collab_indexer/provider.rs:50
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32musing default environment variable APPFLOWY_INDEXER_SCHEDULER_NUM_THREAD:50[0m
+    [2;3mat[0m libs/infra/src/env_util.rs:7
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mIndexer scheduler config: IndexerConfiguration { enable: true, open_ai_config: None, azure_ai_config: None, embedding_buffer_size: 5000 }[0m
+    [2;3mat[0m libs/indexer/src/scheduler.rs:75
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mIndexer scheduler is enabled: false[0m
+    [2;3mat[0m libs/indexer/src/scheduler.rs:91
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mcreating arbiter pool on 16 threads[0m
+    [2;3mat[0m services/appflowy-collaborate/src/ws2/actors/server.rs:286
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mApplication state initialized[0m
+    [2;3mat[0m src/application.rs:371
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mServer started at [::]:8000[0m
+    [2;3mat[0m src/application.rs:91
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32musing default environment variable APPFLOWY_COLLABORATE_REMOVE_BATCH_SIZE:50[0m
+    [2;3mat[0m services/appflowy-collaborate/src/config.rs:142
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mstarting 16 workers[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/builder.rs:310
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mActix runtime found; starting in Actix runtime[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/server.rs:191
+
+  [2m2025-08-02 23:34:13[0m [32m INFO[0m  [32mstarting service: "actix-web-service-[::]:8000", workers: 16, listening on: [::]:8000[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/server.rs:197
+
+  [2m2025-08-02 23:34:17[0m [32m INFO[0m  [32mrealtime server started with mailbox size: 6000[0m
+    [2;3mat[0m services/appflowy-collaborate/src/actix_ws/server/rt_actor.rs:35
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mSIGTERM received; starting graceful shutdown[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/server.rs:342
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32maccept thread stopped[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/accept.rs:143
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+
+  [2m2025-08-03 00:08:14[0m [32m INFO[0m  [32mshutting down idle worker[0m
+    [2;3mat[0m /Users/kuncao/.cargo/registry/src/mirrors.ustc.edu.cn-04b7754156161b43/actix-server-2.6.0/src/worker.rs:593
+

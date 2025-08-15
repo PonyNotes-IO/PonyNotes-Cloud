@@ -187,6 +187,7 @@ pub struct AFUserProfileRow {
   pub updated_at: Option<DateTime<Utc>>,
   pub created_at: Option<DateTime<Utc>>,
   pub latest_workspace_id: Option<Uuid>,
+  pub phone: Option<String>,
 }
 
 impl TryFrom<AFUserProfileRow> for AFUserProfile {
@@ -212,6 +213,7 @@ impl TryFrom<AFUserProfileRow> for AFUserProfile {
       encryption_sign: value.encryption_sign,
       latest_workspace_id,
       updated_at: value.updated_at.map(|v| v.timestamp()).unwrap_or(0),
+      phone: value.phone,
     })
   }
 }

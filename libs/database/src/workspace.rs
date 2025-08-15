@@ -694,6 +694,7 @@ pub async fn select_user_profile<'a, E: Executor<'a, Database = Postgres>>(
         af_user_row.deleted_at,
         af_user_row.updated_at,
         af_user_row.created_at,
+        af_user_row.phone,
        (
          SELECT af_workspace_member.workspace_id
          FROM af_workspace_member

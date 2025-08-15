@@ -8,6 +8,7 @@ pub mod invite_code;
 pub mod metrics;
 pub mod search;
 pub mod server_info;
+pub mod sms;
 pub mod template;
 pub mod user;
 pub mod util;

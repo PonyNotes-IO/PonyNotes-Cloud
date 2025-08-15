@@ -31,6 +31,7 @@ pub struct Config {
   pub notification: NotificationSetting,
   pub open_ai_config: Option<OpenAIConfig>,
   pub azure_ai_config: Option<AzureConfig>,
+  pub sms: SmsSetting,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -154,6 +155,19 @@ pub enum PublishedCollabStorageBackend {
 #[derive(Clone, Debug)]
 pub struct PublishedCollabSetting {
   pub storage_backend: PublishedCollabStorageBackend,
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+pub struct SmsSetting {
+  pub access_key_id: String,
+  pub access_key_secret: Secret<String>,
+  pub sign_name: String,
+  pub template_code: String,
+  pub endpoint: String,
+  pub api_version: String,
+  pub code_length: u8,
+  pub expire_minutes: i64,
+  pub rate_limit_minutes: i64,
 }
 
 impl TryFrom<&str> for PublishedCollabStorageBackend {
@@ -289,6 +303,17 @@ pub fn get_configuration() -> Result<Config, anyhow::Error> {
     },
     open_ai_config,
     azure_ai_config,
+    sms: SmsSetting {
+      access_key_id: get_env_var("ALIYUN_SMS_ACCESS_KEY_ID", ""),
+      access_key_secret: get_env_var("ALIYUN_SMS_ACCESS_KEY_SECRET", "").into(),
+      sign_name: get_env_var("ALIYUN_SMS_SIGN_NAME", ""),
+      template_code: get_env_var("ALIYUN_SMS_TEMPLATE_CODE", ""),
+      endpoint: get_env_var("ALIYUN_SMS_ENDPOINT", "dysmsapi.aliyuncs.com"),
+      api_version: get_env_var("ALIYUN_SMS_API_VERSION", "2017-05-25"),
+      code_length: get_env_var("SMS_CODE_LENGTH", "6").parse()?,
+      expire_minutes: get_env_var("SMS_CODE_EXPIRE_MINUTES", "5").parse()?,
+      rate_limit_minutes: get_env_var("SMS_RATE_LIMIT_MINUTES", "1").parse()?,
+    },
   };
   Ok(config)
 }

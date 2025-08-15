@@ -61,6 +61,7 @@ use crate::api::invite_code::invite_code_scope;
 use crate::api::metrics::metrics_scope;
 use crate::api::search::search_scope;
 use crate::api::server_info::server_info_scope;
+use crate::api::sms::sms_scope;
 use crate::api::template::template_scope;
 use crate::api::user::user_scope;
 use crate::api::workspace::{collab_scope, workspace_scope};
@@ -163,6 +164,7 @@ pub async fn run_actix_server(
       .service(metrics_scope())
       .service(search_scope())
       .service(template_scope())
+      .service(sms_scope())
       .service(data_import_scope())
       .service(access_request_scope())
       .service(sharing_scope())
@@ -368,6 +370,36 @@ pub async fn init_state(config: &Config) -> Result<AppState, Error> {
   );
   let ws_server = WsServer::new(manager).start();
 
+  // SMS Service
+  info!("Setting up SMS service...");
+  let sms_service = if !config.sms.access_key_id.is_empty() && !config.sms.access_key_secret.expose_secret().is_empty() {
+    use crate::biz::sms::{aliyun_sms::AliyunSmsConfig, SmsService, VerificationCodeConfig};
+    use secrecy::ExposeSecret;
+    
+    let aliyun_config = AliyunSmsConfig {
+      access_key_id: config.sms.access_key_id.clone(),
+      access_key_secret: config.sms.access_key_secret.expose_secret().clone(),
+      sign_name: config.sms.sign_name.clone(),
+      template_code: config.sms.template_code.clone(),
+      endpoint: config.sms.endpoint.clone(),
+      api_version: config.sms.api_version.clone(),
+    };
+    
+    let verification_config = VerificationCodeConfig {
+      code_length: config.sms.code_length,
+      expire_minutes: config.sms.expire_minutes,
+      rate_limit_minutes: config.sms.rate_limit_minutes,
+      max_attempts: 3,
+    };
+    
+    let service = SmsService::new(aliyun_config, verification_config);
+    info!("SMS service enabled with Aliyun backend");
+    Some(Arc::new(service))
+  } else {
+    info!("SMS service disabled - missing configuration");
+    None
+  };
+
   info!("Application state initialized");
   Ok(AppState {
     pg_pool,
@@ -393,6 +425,7 @@ pub async fn init_state(config: &Config) -> Result<AppState, Error> {
     ai_client: appflowy_ai_client,
     indexer_scheduler,
     ws_server,
+    sms_service,
   })
 }
 

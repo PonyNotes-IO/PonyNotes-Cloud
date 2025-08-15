@@ -61,6 +61,7 @@ pub struct AppState {
   pub ai_client: AppFlowyAIClient,
   pub indexer_scheduler: Arc<IndexerScheduler>,
   pub ws_server: Addr<WsServer>,
+  pub sms_service: Option<Arc<crate::biz::sms::SmsService>>,
 }
 
 impl AppState {
