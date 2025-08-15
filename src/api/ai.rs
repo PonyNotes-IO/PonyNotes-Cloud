@@ -5,7 +5,7 @@ use actix_web::web::{Data, Json};
 use actix_web::{web, HttpRequest, HttpResponse, Scope};
 use app_error::AppError;
 use appflowy_ai_client::dto::{
-  CalculateSimilarityParams, LocalAIConfig, ModelList, SimilarityResponse, TranslateRowParams,
+  AvailableModel, CalculateSimilarityParams, LocalAIConfig, ModelList, SimilarityResponse, TranslateRowParams,
   TranslateRowResponse,
 };
 
@@ -208,10 +208,33 @@ async fn calculate_similarity_handler(
 async fn model_list_handler(
   state: web::Data<AppState>,
 ) -> actix_web::Result<Json<AppResponse<ModelList>>> {
-  let model_list = state
-    .ai_client
-    .get_model_list()
-    .await
-    .map_err(|err| AppError::AIServiceUnavailable(err.to_string()))?;
-  Ok(AppResponse::Ok().with_data(model_list).into())
+  // 尝试从AI服务获取模型列表，如果失败则返回配置的模型
+  match state.ai_client.get_model_list().await {
+    Ok(model_list) => Ok(AppResponse::Ok().with_data(model_list).into()),
+    Err(_) => {
+      // AI服务不支持模型列表，返回我们配置的模型
+      let fallback_models = ModelList {
+        models: vec![
+          AvailableModel {
+            name: "DeepSeek R1 V3".to_string(),
+            metadata: None,
+          },
+          AvailableModel {
+            name: "Qwen".to_string(),
+            metadata: None,
+          },
+          AvailableModel {
+            name: "doubao-pro-4k".to_string(),
+            metadata: None,
+          },
+          AvailableModel {
+            name: "gpt-4o-mini".to_string(),
+            metadata: None,
+          },
+        ],
+      };
+      trace!("AI service model list unavailable, returning fallback models: {:?}", fallback_models);
+      Ok(AppResponse::Ok().with_data(fallback_models).into())
+    }
+  }
 }

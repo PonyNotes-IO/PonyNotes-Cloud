@@ -346,7 +346,13 @@ pub async fn insert_question_message<'a, E: Executor<'a, Database = Postgres>>(
   )
   .fetch_one(executor)
   .await
-  .map_err(|err| AppError::Internal(anyhow!("Failed to insert chat message: {}", err)))?;
+  .map_err(|err| {
+    if err.to_string().contains("af_chat_messages_chat_id_fkey") {
+      AppError::InvalidRequest(format!("Chat with id {} does not exist", chat_id))
+    } else {
+      AppError::Internal(anyhow!("Failed to insert chat message: {}", err))
+    }
+  })?;
 
   let chat_message = ChatMessageWithAuthorUuid {
     author,

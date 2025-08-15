@@ -131,17 +131,53 @@ pub async fn create_chat_message(
   chat_id: String,
   params: CreateChatMessageParams,
 ) -> Result<ChatMessageWithAuthorUuid, AppError> {
-  let chat_id = chat_id.clone();
-  let pg_pool = pg_pool.clone();
-
-  let question = insert_question_message(
-    &pg_pool,
-    ChatAuthorWithUuid::new(uid, user_uuid, ChatAuthorType::Human),
+  let author = ChatAuthorWithUuid::new(uid, user_uuid, ChatAuthorType::Human);
+  
+  // 首次尝试插入消息
+  let result = insert_question_message(
+    pg_pool,
+    author.clone(),
     &chat_id,
-    params.content,
-  )
-  .await?;
-  Ok(question)
+    params.content.clone(),
+  ).await;
+
+  match result {
+    Ok(question) => Ok(question),
+    Err(AppError::InvalidRequest(ref msg)) if msg.contains("does not exist") => {
+      // 聊天不存在，自动创建聊天
+      trace!("Chat {} not found, auto-creating", chat_id);
+      
+      // 获取用户的workspace_id
+      let workspace_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT workspace_id FROM af_workspace_member WHERE uid = $1 LIMIT 1"
+      )
+      .bind(uid)
+      .fetch_optional(pg_pool)
+      .await?;
+      
+      let workspace_id = workspace_id
+        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("User workspace not found")))?;
+
+      // 创建聊天记录
+      let create_chat_params = CreateChatParams {
+        chat_id: chat_id.clone(),
+        name: "AI聊天".to_string(),
+        rag_ids: vec![],
+      };
+      
+      insert_chat(pg_pool, &workspace_id, create_chat_params).await?;
+      trace!("Auto-created chat: {}", chat_id);
+
+      // 重新尝试插入消息
+      insert_question_message(
+        pg_pool,
+        author,
+        &chat_id,
+        params.content,
+      ).await
+    },
+    Err(e) => Err(e),
+  }
 }
 
 // Deprecated since v0.9.24
