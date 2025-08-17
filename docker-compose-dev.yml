@@ -35,7 +35,7 @@ services:
   gotrue:
     restart: on-failure
     build:
-      context: ../../../PonyNotes-gotrue
+      context: ../PonyNotes-gotrue
       dockerfile: Dockerfile
     image: appflowyinc/gotrue:dev-aliyun-sms
     depends_on:

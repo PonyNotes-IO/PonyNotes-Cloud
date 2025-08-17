@@ -47,7 +47,7 @@ services:
   gotrue:
     restart: on-failure
     build:
-      context: docker/gotrue
+      context: ../PonyNotes-gotrue
       dockerfile: Dockerfile
     depends_on:
       postgres:
