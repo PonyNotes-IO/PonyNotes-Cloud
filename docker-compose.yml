@@ -140,6 +140,10 @@ services:
       - AI_SERVER_PORT=${AI_SERVER_PORT}
       - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY}
       - APPFLOWY_WEB_URL=${APPFLOWY_WEB_URL}
+      # 抖音开放平台直接配置 (用于PonyNotes自定义OAuth流程)
+      - DOUYIN_CLIENT_KEY=${DOUYIN_CLIENT_KEY}
+      - DOUYIN_CLIENT_SECRET=${DOUYIN_CLIENT_SECRET}
+      - DOUYIN_REDIRECT_URI=${DOUYIN_REDIRECT_URI}
     build:
       context: .
       dockerfile: Dockerfile

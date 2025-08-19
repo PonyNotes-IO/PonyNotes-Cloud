@@ -130,6 +130,10 @@ services:
       # AI Service Configuration
       - AI_SERVER_PORT=${AI_SERVER_PORT:-5001}
       - AI_SERVER_HOST=${AI_SERVER_HOST:-ai}
+      # 抖音开放平台直接配置 (用于PonyNotes自定义OAuth流程)
+      - DOUYIN_CLIENT_KEY=${DOUYIN_CLIENT_KEY}
+      - DOUYIN_CLIENT_SECRET=${DOUYIN_CLIENT_SECRET}
+      - DOUYIN_REDIRECT_URI=${DOUYIN_REDIRECT_URI}
     ports:
       - 8000:8000
     depends_on:
