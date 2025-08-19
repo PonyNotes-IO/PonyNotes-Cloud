@@ -647,7 +647,7 @@ pub async fn select_all_published_collab_info(
   .await?;
 
   use_non_orginal_namespace_if_possible(pg_pool, &mut res).await?;
-  Ok(res)
+  Ok(res.to_vec())
 }
 
 async fn use_non_orginal_namespace_if_possible(
