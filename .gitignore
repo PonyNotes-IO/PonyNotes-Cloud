@@ -23,3 +23,4 @@ flake.lock
 **/.env.*
 
 docker-compose.override.yml
+local-docs
