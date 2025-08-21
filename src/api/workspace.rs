@@ -71,6 +71,7 @@ use rayon::prelude::*;
 
 use semver::Version;
 use sha2::{Digest, Sha256};
+use shared_entity::dto::billing_dto::WorkspaceUsageAndLimit;
 use shared_entity::dto::publish_dto::DuplicatePublishedPageResponse;
 use shared_entity::dto::workspace_dto::*;
 use shared_entity::response::AppResponseError;
@@ -297,6 +298,9 @@ pub fn workspace_scope() -> Scope {
     )
     .service(
       web::resource("/{workspace_id}/usage").route(web::get().to(get_workspace_usage_handler)),
+    )
+    .service(
+      web::resource("/{workspace_id}/usage-and-limit").route(web::get().to(get_workspace_usage_and_limit_handler)),
     )
     .service(
       web::resource("/published/{publish_namespace}")
@@ -2428,6 +2432,42 @@ async fn get_workspace_usage_handler(
   let res =
     biz::workspace::ops::get_workspace_document_total_bytes(&state.pg_pool, &workspace_id).await?;
   Ok(Json(AppResponse::Ok().with_data(res)))
+}
+
+async fn get_workspace_usage_and_limit_handler(
+  user_uuid: UserUuid,
+  workspace_id: web::Path<Uuid>,
+  state: Data<AppState>,
+) -> Result<Json<AppResponse<WorkspaceUsageAndLimit>>> {
+  let workspace_id = workspace_id.into_inner();
+  let uid = state.user_cache.get_user_uid(&user_uuid).await?;
+  state
+    .workspace_access_control
+    .enforce_role_weak(&uid, &workspace_id, AFRole::Owner)
+    .await?;
+
+  // Get workspace usage
+  let usage = biz::workspace::ops::get_workspace_document_total_bytes(&state.pg_pool, &workspace_id).await?;
+  
+  // TODO: Get actual workspace subscription and limits from billing service
+  // For now, return default limits
+  let usage_and_limit = WorkspaceUsageAndLimit {
+    member_count: 1, // TODO: Get actual member count
+    member_count_limit: 10, // TODO: Get from subscription
+    storage_bytes: usage.total_document_size,
+    storage_bytes_limit: 1024 * 1024 * 1024, // 1GB default
+    storage_bytes_unlimited: false,
+    single_upload_limit: 100 * 1024 * 1024, // 100MB default
+    single_upload_unlimited: false,
+    ai_responses_count: 0, // TODO: Get actual AI usage
+    ai_responses_count_limit: 100, // Default limit
+    ai_image_responses_count: 0, // TODO: Get actual AI image usage
+    ai_image_responses_count_limit: 10, // Default limit
+    local_ai: false,
+    ai_responses_unlimited: false,
+  };
+
+  Ok(Json(AppResponse::Ok().with_data(usage_and_limit)))
 }
 
 async fn get_workspace_folder_handler(

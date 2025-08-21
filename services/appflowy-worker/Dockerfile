@@ -1,36 +1,22 @@
 # syntax=docker/dockerfile:1
-FROM lukemathwalker/cargo-chef:latest-rust-1.86 as chef
+FROM rust:1.86-bookworm as builder
 
 # Set the initial working directory
 WORKDIR /app
-RUN apt update && apt install lld clang -y
-
-FROM chef as planner
-COPY . .
-
-# Compute a lock-like file for our project
-RUN cargo chef prepare --recipe-path recipe.json
-
-FROM chef as builder
 
 # Update package lists and install protobuf-compiler along with other build dependencies
 RUN apt update && apt install -y protobuf-compiler lld clang
 
 ARG PROFILE="release"
 
-COPY --from=planner /app/recipe.json recipe.json
+# Copy everything first
+COPY . .
+
 # Build our project dependencies with optimized settings
 ENV CARGO_BUILD_JOBS=4
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 RUN echo "Building worker with profile: ${PROFILE} "
-RUN if [ "$PROFILE" = "release" ]; then \
-      cargo chef cook --release --recipe-path recipe.json; \
-    else \
-      cargo chef cook --recipe-path recipe.json; \
-    fi
-
-COPY . .
 
 WORKDIR /app/services/appflowy-worker
 RUN if [ "$PROFILE" = "release" ]; then \

@@ -464,7 +464,7 @@ pub struct AFCollabEmbedInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RepeatedAFCollabEmbedInfo(pub Vec<AFCollabEmbedInfo>);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct PublishInfo {
   pub namespace: String,
   pub publish_name: String,

@@ -1,11 +1,10 @@
 # syntax=docker/dockerfile:1
 # User should build from parent directory
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.86 as chef
+FROM rust:1.86-bookworm as builder
 
 WORKDIR /app
 
-FROM chef as builder
 ARG PROFILE="release"
 COPY . .
 WORKDIR /app/admin_frontend
@@ -16,7 +15,7 @@ RUN if [ "$PROFILE" = "release" ]; then \
       cargo build --bin admin_frontend; \
     fi
 
-FROM debian AS runtime
+FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 RUN apt-get update -y \
   && apt-get install -y --no-install-recommends libc6 libssl-dev \
