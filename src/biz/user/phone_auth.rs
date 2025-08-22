@@ -67,12 +67,32 @@ pub async fn find_or_create_user_by_phone(
     let user_uuid = Uuid::new_v4();
     let uid = state.next_user_id().await;
     
+    // 首先在 auth.users 表中创建记录以满足外键约束
+    // 这是为了支持手机号登录而添加的临时解决方案
+    let fake_email = format!("phone_{}@temp.local", phone);  // 生成临时邮箱
+    let now = chrono::Utc::now();
+    
+    sqlx::query(
+        r#"
+        INSERT INTO auth.users (id, email, phone, created_at, updated_at, email_confirmed_at, phone_confirmed_at)
+        VALUES ($1, $2, $3, $4, $5, $4, $4)
+        ON CONFLICT (id) DO NOTHING
+        "#
+    )
+    .bind(&user_uuid)
+    .bind(&fake_email)
+    .bind(phone)
+    .bind(now)
+    .bind(now)
+    .execute(&state.pg_pool)
+    .await?;
+    
     // 创建用户记录
     let created_user_uuid = create_user(
         &state.pg_pool,
         uid,
         &user_uuid,
-        "", // email 为空，通过手机号注册
+        &fake_email, // 使用临时邮箱而不是空字符串
         &format!("用户{}", &phone[phone.len() - 4..]), // 默认昵称：用户+手机号后4位
     )
     .await?;
