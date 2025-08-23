@@ -17,7 +17,7 @@ impl GoTrueServiceRoleClaims {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoTrueJWTClaims {
   // JWT standard claims
   pub aud: Option<String>,
@@ -47,7 +47,7 @@ impl Display for GoTrueJWTClaims {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Amr {
   pub method: String,
   pub timestamp: u64,

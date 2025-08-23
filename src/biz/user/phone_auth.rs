@@ -1,10 +1,11 @@
 use anyhow::{anyhow, Result};
 use app_error::AppError;
-use database::{user::create_user, workspace::select_user_profile};
+use database::workspace::select_user_profile;
 use gotrue_entity::gotrue_jwt::{Amr, GoTrueJWTClaims};
 use sqlx::Row;
 use tracing::info;
 use uuid::Uuid;
+use jsonwebtoken::{encode, EncodingKey, Header};
 
 
 use crate::state::AppState;
@@ -66,12 +67,13 @@ pub async fn find_or_create_user_by_phone(
     // 生成新的UUID和ID
     let user_uuid = Uuid::new_v4();
     let uid = state.next_user_id().await;
-    
-    // 首先在 auth.users 表中创建记录以满足外键约束
-    // 这是为了支持手机号登录而添加的临时解决方案
     let fake_email = format!("phone_{}@temp.local", phone);  // 生成临时邮箱
     let now = chrono::Utc::now();
     
+    // 使用事务确保数据一致性
+    let mut tx = state.pg_pool.begin().await?;
+    
+    // 首先在 auth.users 表中创建记录以满足外键约束
     sqlx::query(
         r#"
         INSERT INTO auth.users (id, email, phone, created_at, updated_at, email_confirmed_at, phone_confirmed_at)
@@ -86,36 +88,38 @@ pub async fn find_or_create_user_by_phone(
     .bind(now)
     .bind(now)
     .bind(now)
-    .execute(&state.pg_pool)
+    .execute(&mut *tx)
     .await?;
     
-    // 创建用户记录
-    let created_user_uuid = create_user(
-        &state.pg_pool,
-        uid,
-        &user_uuid,
-        &fake_email, // 使用临时邮箱而不是空字符串
-        &format!("用户{}", &phone[phone.len() - 4..]), // 默认昵称：用户+手机号后4位
-    )
-    .await?;
-
-    // 更新用户的手机号字段和metadata
+    // 直接在af_user表中插入包含phone字段的记录，避免后续UPDATE造成的约束冲突
     let phone_metadata = serde_json::json!({
         "phone_number": phone
     });
     
     sqlx::query(
         r#"
-        UPDATE af_user
-        SET phone = $1, metadata = $2
-        WHERE uid = $3
+        INSERT INTO af_user (uid, uuid, email, name, phone, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6)
         "#
     )
+    .bind(uid)
+    .bind(&user_uuid)
+    .bind(&fake_email)
+    .bind(&format!("用户{}", &phone[phone.len() - 4..])) // 默认昵称：用户+手机号后4位
     .bind(phone)
     .bind(phone_metadata)
-    .bind(uid)
-    .execute(&state.pg_pool)
+    .execute(&mut *tx)
     .await?;
+    
+    // 创建工作区
+    let workspace_id: Uuid = sqlx::query("INSERT INTO af_workspace (owner_uid) VALUES ($1) RETURNING workspace_id")
+        .bind(uid)
+        .fetch_one(&mut *tx)
+        .await?
+        .get("workspace_id");
+    
+    // 提交事务
+    tx.commit().await?;
 
     info!("Created new user with UUID: {} for phone: {}", user_uuid, phone);
     Ok((user_uuid, true))
@@ -162,10 +166,28 @@ pub async fn generate_access_token_for_user(
         session_id: Some(Uuid::new_v4().to_string()),
     };
 
-    // 这里应该使用真正的 JWT 签名，现在先返回模拟的 token
-    // TODO: 集成真正的 GoTrue JWT 生成
-    let access_token = format!("jwt_access_token_{}", user_uuid);
-    let refresh_token = format!("jwt_refresh_token_{}", user_uuid);
+    // 使用真正的 JWT 签名
+    
+    let secret = std::env::var("GOTRUE_JWT_SECRET")
+        .unwrap_or_else(|_| "your-256-bit-secret".to_string());
+    
+    let access_token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .map_err(|e| AppError::Internal(anyhow!("Failed to generate access token: {}", e)))?;
+    
+    // 生成refresh token (通常使用不同的过期时间和claims)
+    let mut refresh_claims = claims.clone();
+    refresh_claims.exp = Some(chrono::Utc::now().timestamp() + 3600 * 24 * 30); // 30天过期
+    
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .map_err(|e| AppError::Internal(anyhow!("Failed to generate refresh token: {}", e)))?;
 
     Ok((access_token, refresh_token))
 }
