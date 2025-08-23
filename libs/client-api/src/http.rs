@@ -137,7 +137,12 @@ impl Client {
     config: ClientConfiguration,
     client_id: &str,
   ) -> Self {
-    let reqwest_client = reqwest::Client::new();
+    let reqwest_client = reqwest::Client::builder()
+      .timeout(Duration::from_secs(60))
+      .connect_timeout(Duration::from_secs(30))
+      .read_timeout(Duration::from_secs(60))
+      .build()
+      .expect("Failed to create HTTP client");
     let client_version = Version::parse(client_id).unwrap_or_else(|_| Version::new(0, 6, 7));
 
     let min_version = Version::new(0, 6, 7);

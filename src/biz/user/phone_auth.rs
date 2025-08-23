@@ -112,7 +112,7 @@ pub async fn find_or_create_user_by_phone(
     .await?;
     
     // 创建工作区
-    let workspace_id: Uuid = sqlx::query("INSERT INTO af_workspace (owner_uid) VALUES ($1) RETURNING workspace_id")
+    let _workspace_id: Uuid = sqlx::query("INSERT INTO af_workspace (owner_uid) VALUES ($1) RETURNING workspace_id")
         .bind(uid)
         .fetch_one(&mut *tx)
         .await?

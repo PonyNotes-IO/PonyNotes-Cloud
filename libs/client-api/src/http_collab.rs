@@ -2,6 +2,7 @@ use crate::entity::CollabType;
 use crate::{
   blocking_brotli_compress, brotli_compress, process_response_data, process_response_error, Client,
 };
+use tokio_retry::Retry;
 use anyhow::anyhow;
 use app_error::AppError;
 use bytes::Bytes;
@@ -25,7 +26,7 @@ use rayon::prelude::*;
 use reqwest::{Body, Method};
 use serde::Serialize;
 use shared_entity::dto::workspace_dto::{CollabResponse, CollabTypeParam, EmbeddedCollabQuery};
-use shared_entity::response::AppResponseError;
+use shared_entity::response::{AppResponseError, ErrorCode};
 use std::collections::HashMap;
 use std::future::Future;
 use std::io::Cursor;
@@ -55,18 +56,26 @@ impl Client {
     )
     .await?;
 
-    #[allow(unused_mut)]
-    let mut builder = self
-      .http_client_with_auth_compress(Method::POST, &url)
-      .await?;
+    // Add retry mechanism for network resilience
+    let retry_strategy = ExponentialBackoff::from_millis(300).max_delay(Duration::from_secs(10));
+    let action = || async {
+      #[allow(unused_mut)]
+      let mut builder = self
+        .http_client_with_auth_compress(Method::POST, &url)
+        .await?;
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-      builder = builder.timeout(std::time::Duration::from_secs(60));
-    }
+      #[cfg(not(target_arch = "wasm32"))]
+      {
+        builder = builder.timeout(std::time::Duration::from_secs(60));
+      }
 
-    let resp = builder.body(compress_bytes).send().await?;
-    process_response_error(resp).await
+      let resp = builder.body(compress_bytes.clone()).send().await?;
+      process_response_error(resp).await
+    };
+
+    Retry::spawn(retry_strategy, action)
+      .condition(RetryCreateCollabCondition)
+      .await
   }
 
   #[instrument(level = "info", skip_all, err)]
@@ -404,8 +413,8 @@ impl Client {
     &self,
     params: QueryCollabParams,
   ) -> Result<CollabResponse, AppResponseError> {
-    // 2 seconds, 4 seconds, 8 seconds
-    let retry_strategy = ExponentialBackoff::from_millis(2).factor(1000).take(3);
+    // 1 second, 2 seconds, 4 seconds, 8 seconds, 16 seconds
+    let retry_strategy = ExponentialBackoff::from_millis(1000).factor(2).take(5);
     let action = GetCollabAction::new(self.clone(), params);
     RetryIf::spawn(retry_strategy, action, RetryGetCollabCondition).await
   }
@@ -537,7 +546,36 @@ impl Client {
 struct RetryGetCollabCondition;
 impl Condition<AppResponseError> for RetryGetCollabCondition {
   fn should_retry(&mut self, error: &AppResponseError) -> bool {
-    !error.is_record_not_found()
+    // Retry on network errors, timeouts, and 5xx errors, but not on 404 (record not found)
+    // or 401/403 (authentication/authorization errors)
+    match error.code {
+      ErrorCode::RecordNotFound => false,
+      ErrorCode::UserUnAuthorized => false,
+      ErrorCode::NotEnoughPermissions => false,
+      ErrorCode::NetworkError => true,
+      ErrorCode::RequestTimeout => true,
+      ErrorCode::ServiceTemporaryUnavailable => true,
+      ErrorCode::Internal => true,
+      _ => true,
+    }
+  }
+}
+
+struct RetryCreateCollabCondition;
+impl Condition<AppResponseError> for RetryCreateCollabCondition {
+  fn should_retry(&mut self, error: &AppResponseError) -> bool {
+    // Retry on network errors, timeouts, and 5xx errors for create operations
+    // Be more conservative for create operations to avoid duplicate creation
+    match error.code {
+      ErrorCode::RecordNotFound => false,
+      ErrorCode::UserUnAuthorized => false,
+      ErrorCode::NotEnoughPermissions => false,
+      ErrorCode::NetworkError => true,
+      ErrorCode::RequestTimeout => true,
+      ErrorCode::ServiceTemporaryUnavailable => true,
+      ErrorCode::Internal => false, // Don't retry internal errors for creates to avoid duplicates
+      _ => false, // Be conservative for create operations
+    }
   }
 }
 

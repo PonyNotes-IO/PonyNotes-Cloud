@@ -40,8 +40,8 @@ impl Default for WSClientConfig {
   fn default() -> Self {
     Self {
       buffer_capacity: 2000,
-      ping_per_secs: 5,
-      retry_connect_per_pings: 6,
+      ping_per_secs: 3,        // 减少到3秒，更快检测连接问题
+      retry_connect_per_pings: 4, // 减少到4次，更快重连 (12秒无响应即重连)
     }
   }
 }

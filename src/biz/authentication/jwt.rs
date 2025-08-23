@@ -17,6 +17,10 @@ impl UserUuid {
   pub fn from_auth(auth: Authorization) -> Result<Self, actix_web::Error> {
     Ok(Self(auth.uuid()?))
   }
+
+  pub fn as_uuid(&self) -> uuid::Uuid {
+    self.0
+  }
 }
 
 impl Deref for UserUuid {

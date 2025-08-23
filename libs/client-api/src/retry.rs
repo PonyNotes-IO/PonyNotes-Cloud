@@ -11,7 +11,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use tokio_retry::strategy::FixedInterval;
+use tokio_retry::strategy::{ExponentialBackoff, FixedInterval};
 use tokio_retry::{Action, Condition, RetryIf};
 use tokio_tungstenite::tungstenite::http::HeaderMap;
 use tracing::{debug, info, trace};
@@ -80,10 +80,16 @@ pub async fn retry_connect(
   connect_provider: Arc<dyn WSClientConnectURLProvider>,
   state_notify: Weak<StateNotify>,
 ) -> Result<WebSocketStream, WSError> {
+  // 使用指数退避策略：1秒开始，每次翻倍，最大30秒，最多重试10次
+  let retry_strategy = ExponentialBackoff::from_millis(1000)
+    .factor(2)
+    .max_delay(Duration::from_secs(30))
+    .take(10);
+    
   let stream = RetryIf::spawn(
-    FixedInterval::new(Duration::from_secs(15)),
+    retry_strategy,
     ConnectAction::new(connect_provider),
-    RetryCondition { state_notify },
+    RetryCondition { state_notify, attempt_count: 0 },
   )
   .await?;
   Ok(stream)
@@ -107,16 +113,23 @@ impl Action for ConnectAction {
   fn run(&mut self) -> Self::Future {
     let connect_provider = self.connect_provider.clone();
     Box::pin(async move {
-      info!("🔵websocket start connecting");
+      info!("🔵WebSocket开始连接...");
       let url = connect_provider.connect_ws_url();
       let headers: HeaderMap = connect_provider.connect_info().await?.into();
-      trace!("websocket url:{}, headers: {:?}", url, headers);
+      trace!("WebSocket URL: {}, Headers: {:?}", url, headers);
+      
+      let start_time = std::time::Instant::now();
       match connect_async(&url, headers).await {
         Ok(stream) => {
-          info!("🟢websocket connect success");
+          let duration = start_time.elapsed();
+          info!("🟢WebSocket连接成功，耗时: {:?}", duration);
           Ok(stream)
         },
-        Err(e) => Err(e.into()),
+        Err(e) => {
+          let duration = start_time.elapsed();
+          debug!("❌WebSocket连接失败，耗时: {:?}, 错误: {}", duration, e);
+          Err(e.into())
+        },
       }
     })
   }
@@ -124,17 +137,40 @@ impl Action for ConnectAction {
 
 struct RetryCondition {
   state_notify: Weak<parking_lot::Mutex<ConnectStateNotify>>,
+  attempt_count: u32,
 }
 impl Condition<WSError> for RetryCondition {
   fn should_retry(&mut self, error: &WSError) -> bool {
-    if let WSError::AuthError(err) = error {
-      debug!("{}, stop retry connect", err);
-      if let Some(state_notify) = self.state_notify.upgrade() {
-        state_notify.lock().set_state(ConnectState::Unauthorized);
-      }
-      return false;
+    self.attempt_count += 1;
+    
+    match error {
+      WSError::AuthError(err) => {
+        debug!("认证错误，停止重试: {}", err);
+        if let Some(state_notify) = self.state_notify.upgrade() {
+          state_notify.lock().set_state(ConnectState::Unauthorized);
+        }
+        false
+      },
+      WSError::Close(msg) => {
+        debug!("连接关闭，停止重试: {}", msg);
+        false
+      },
+      WSError::LostConnection(msg) => {
+        debug!("连接丢失，尝试重连 (第{}次): {}", self.attempt_count, msg);
+        true
+      },
+      WSError::TungsteniteError(err) => {
+        debug!("WebSocket错误，尝试重连 (第{}次): {}", self.attempt_count, err);
+        true
+      },
+      WSError::Http(msg) => {
+        debug!("HTTP错误，尝试重连 (第{}次): {}", self.attempt_count, msg);
+        true
+      },
+      WSError::Internal(err) => {
+        debug!("内部错误，尝试重连 (第{}次): {}", self.attempt_count, err);
+        true
+      },
     }
-
-    true
   }
 }
