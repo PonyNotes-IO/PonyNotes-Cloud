@@ -75,13 +75,15 @@ pub async fn find_or_create_user_by_phone(
     sqlx::query(
         r#"
         INSERT INTO auth.users (id, email, phone, created_at, updated_at, email_confirmed_at, phone_confirmed_at)
-        VALUES ($1, $2, $3, $4, $5, $4, $4)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO NOTHING
         "#
     )
     .bind(&user_uuid)
     .bind(&fake_email)
     .bind(phone)
+    .bind(now)
+    .bind(now)
     .bind(now)
     .bind(now)
     .execute(&state.pg_pool)
