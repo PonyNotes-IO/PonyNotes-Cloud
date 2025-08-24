@@ -1,13 +1,15 @@
 use anyhow::{anyhow, Result};
 use app_error::AppError;
-use database::workspace::select_user_profile;
+use database::workspace::{select_user_profile, select_workspace};
 use gotrue_entity::gotrue_jwt::{Amr, GoTrueJWTClaims};
 use sqlx::Row;
 use tracing::info;
 use uuid::Uuid;
 use jsonwebtoken::{encode, EncodingKey, Header};
+use workspace_template::document::getting_started::GettingStartedTemplate;
+use database_entity::dto::AFRole;
 
-
+use crate::biz::user::user_init::initialize_workspace_for_user;
 use crate::state::AppState;
 
 /// 手机号登录/注册结果
@@ -56,6 +58,13 @@ pub async fn find_or_create_user_by_phone(
         .bind(uid)
         .execute(&state.pg_pool)
         .await?;
+        
+        // 检查现有用户是否有完整的工作区初始化
+        let needs_workspace_init = check_user_needs_workspace_init(state, uid, &uuid).await?;
+        if needs_workspace_init {
+            info!("Existing user {} needs workspace initialization", uuid);
+            ensure_user_workspace_initialized(state, uid, &uuid).await?;
+        }
         
         info!("Found existing user for phone: {}", phone);
         return Ok((uuid, false));
@@ -112,7 +121,7 @@ pub async fn find_or_create_user_by_phone(
     .await?;
     
     // 创建工作区
-    let _workspace_id: Uuid = sqlx::query("INSERT INTO af_workspace (owner_uid) VALUES ($1) RETURNING workspace_id")
+    let workspace_id: Uuid = sqlx::query("INSERT INTO af_workspace (owner_uid) VALUES ($1) RETURNING workspace_id")
         .bind(uid)
         .fetch_one(&mut *tx)
         .await?
@@ -121,7 +130,29 @@ pub async fn find_or_create_user_by_phone(
     // 提交事务
     tx.commit().await?;
 
-    info!("Created new user with UUID: {} for phone: {}", user_uuid, phone);
+    // 初始化工作区（包括用户认知对象）
+    let workspace_row = select_workspace(&state.pg_pool, &workspace_id).await?;
+    
+    // 添加用户角色权限
+    state
+        .workspace_access_control
+        .insert_role(&uid, &workspace_id, AFRole::Owner)
+        .await?;
+    
+    // 创建完整的工作区结构（包括用户认知对象）
+    let mut txn2 = state.pg_pool.begin().await?;
+    initialize_workspace_for_user(
+        uid,
+        &user_uuid,
+        &workspace_row,
+        &mut txn2,
+        vec![GettingStartedTemplate],
+        &state.collab_storage,
+    )
+    .await?;
+    txn2.commit().await?;
+
+    info!("Created new user with UUID: {} for phone: {} and initialized workspace", user_uuid, phone);
     Ok((user_uuid, true))
 }
 
@@ -230,6 +261,79 @@ pub async fn phone_login(
         refresh_token,
         is_new_user,
     })
+}
+
+/// 检查用户是否需要工作区初始化
+async fn check_user_needs_workspace_init(
+    state: &AppState,
+    uid: i64,
+    user_uuid: &Uuid,
+) -> Result<bool, AppError> {
+    // 检查用户的工作区是否存在用户认知对象
+    let workspace_ids: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT workspace_id FROM af_workspace WHERE owner_uid = $1"
+    )
+    .bind(uid)
+    .fetch_all(&state.pg_pool)
+    .await?;
+    
+    for workspace_id in workspace_ids {
+        // 检查这个工作区是否有用户认知对象
+        let has_user_awareness = sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM af_collab WHERE workspace_id = $1 AND oid = $2 AND collab_type = 5)",
+            workspace_id,
+            crate::biz::user::user_init::user_awareness_object_id(user_uuid, &workspace_id)
+        )
+        .fetch_one(&state.pg_pool)
+        .await?;
+        
+        if !has_user_awareness.unwrap_or(false) {
+            return Ok(true);
+        }
+    }
+    
+    Ok(false)
+}
+
+/// 确保用户工作区完全初始化
+async fn ensure_user_workspace_initialized(
+    state: &AppState,
+    uid: i64,
+    user_uuid: &Uuid,
+) -> Result<(), AppError> {
+    let workspace_ids: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT workspace_id FROM af_workspace WHERE owner_uid = $1"
+    )
+    .bind(uid)
+    .fetch_all(&state.pg_pool)
+    .await?;
+    
+    for workspace_id in workspace_ids {
+        let workspace_row = select_workspace(&state.pg_pool, &workspace_id).await?;
+        
+        // 确保用户有Owner角色
+        state
+            .workspace_access_control
+            .insert_role(&uid, &workspace_id, AFRole::Owner)
+            .await?;
+        
+        // 初始化工作区（这会创建缺失的用户认知对象）
+        let mut txn = state.pg_pool.begin().await?;
+        initialize_workspace_for_user(
+            uid,
+            user_uuid,
+            &workspace_row,
+            &mut txn,
+            vec![], // 不重新创建模板文档，只创建缺失的对象
+            &state.collab_storage,
+        )
+        .await?;
+        txn.commit().await?;
+        
+        info!("Initialized workspace {} for existing user {}", workspace_id, user_uuid);
+    }
+    
+    Ok(())
 }
 
 /// 验证手机号格式
