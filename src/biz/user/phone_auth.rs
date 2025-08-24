@@ -324,7 +324,7 @@ async fn ensure_user_workspace_initialized(
             user_uuid,
             &workspace_row,
             &mut txn,
-            vec![], // 不重新创建模板文档，只创建缺失的对象
+            vec![GettingStartedTemplate], // 使用明确的类型
             &state.collab_storage,
         )
         .await?;
