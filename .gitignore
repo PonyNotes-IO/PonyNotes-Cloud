@@ -24,3 +24,6 @@ flake.lock
 
 docker-compose.override.yml
 local-docs
+
+# Commented documentation files
+*.commented

@@ -280,7 +280,7 @@ async fn check_user_needs_workspace_init(
     for workspace_id in workspace_ids {
         // 检查这个工作区是否有用户认知对象
         let has_user_awareness = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM af_collab WHERE workspace_id = $1 AND oid = $2 AND collab_type = 5)",
+            "SELECT EXISTS(SELECT 1 FROM af_collab WHERE workspace_id = $1 AND oid = $2 AND partition_key = 5)",
             workspace_id,
             crate::biz::user::user_init::user_awareness_object_id(user_uuid, &workspace_id)
         )
