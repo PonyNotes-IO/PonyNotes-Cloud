@@ -332,8 +332,8 @@ pub async fn phone_login(
         access_token,
         refresh_token,
         is_new_user,
-        user_metadata: user_info.metadata,
         latest_workspace_id: user_info.latest_workspace_id,
+        user_metadata: user_info.metadata,
     })
 }
 
