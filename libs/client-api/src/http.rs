@@ -141,6 +141,7 @@ impl Client {
       .timeout(Duration::from_secs(60))
       .connect_timeout(Duration::from_secs(30))
       .read_timeout(Duration::from_secs(60))
+      .danger_accept_invalid_certs(true) // Accept invalid SSL certificates for development
       .build()
       .expect("Failed to create HTTP client");
     let client_version = Version::parse(client_id).unwrap_or_else(|_| Version::new(0, 6, 7));
