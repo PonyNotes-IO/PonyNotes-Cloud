@@ -25,6 +25,7 @@ pub struct PhoneAuthResult {
     pub refresh_token: String,
     pub is_new_user: bool,
     pub user_metadata: serde_json::Value,
+    pub latest_workspace_id: Uuid,
 }
 
 /// 用户信息结构体
@@ -37,6 +38,7 @@ pub struct UserInfo {
     pub created_at: String,
     pub updated_at: String,
     pub metadata: serde_json::Value,
+    pub latest_workspace_id: Uuid,
 }
 
 /// 通过手机号查找或创建用户
@@ -88,6 +90,15 @@ pub async fn find_or_create_user_by_phone(
             .await?;
         }
         
+        // 获取用户的workspace_id
+        let latest_workspace_id: Uuid = sqlx::query_scalar(
+            "SELECT workspace_id FROM af_workspace WHERE owner_uid = $1 LIMIT 1"
+        )
+        .bind(uid)
+        .fetch_optional(&state.pg_pool)
+        .await?
+        .ok_or_else(|| AppError::Internal(anyhow!("User has no workspace")))?;
+        
         // 检查现有用户是否有完整的工作区初始化
         let needs_workspace_init = check_user_needs_workspace_init(state, uid, &uuid).await?;
         if needs_workspace_init {
@@ -105,6 +116,7 @@ pub async fn find_or_create_user_by_phone(
             created_at: created_at.to_rfc3339(),
             updated_at: updated_at.to_rfc3339(),
             metadata,
+            latest_workspace_id,
         };
         
         return Ok((user_info, false));
@@ -205,6 +217,7 @@ pub async fn find_or_create_user_by_phone(
         metadata: serde_json::json!({
             "phone_number": phone
         }),
+        latest_workspace_id: workspace_id,
     };
     
     Ok((user_info, true))
@@ -320,6 +333,7 @@ pub async fn phone_login(
         refresh_token,
         is_new_user,
         user_metadata: user_info.metadata,
+        latest_workspace_id: user_info.latest_workspace_id,
     })
 }
 

@@ -8,6 +8,7 @@ use crate::biz::user::phone_auth::{phone_login, validate_phone_number};
 use crate::state::AppState;
 use shared_entity::response::{AppResponse, AppResponseError, JsonAppResponse};
 use app_error::ErrorCode;
+use gotrue_entity::dto::{GotrueTokenResponse, User};
 
 #[derive(Deserialize, Debug)]
 pub struct SendSmsCodeRequest {
@@ -165,7 +166,7 @@ async fn phone_login_handler(
     payload: Json<PhoneLoginRequest>,
     state: Data<AppState>,
     req: HttpRequest,
-) -> Result<JsonAppResponse<PhoneLoginResponse>> {
+) -> Result<JsonAppResponse<GotrueTokenResponse>> {
     let request = payload.into_inner();
     
     info!(
@@ -181,18 +182,37 @@ async fn phone_login_handler(
     // 执行手机号登录流程
     match phone_login(&state, &validated_phone, &request.code).await {
         Ok(auth_result) => {
-            let response = PhoneLoginResponse {
+            let response = GotrueTokenResponse {
                 access_token: auth_result.access_token,
                 token_type: "bearer".to_string(),
                 expires_in: 3600, // 1 hour
                 expires_at: chrono::Utc::now().timestamp() + 3600,
                 refresh_token: auth_result.refresh_token,
-                user: PhoneLoginUser {
-                    id: auth_result.user_uid.to_string(),
+                user: User {
+                    id: auth_result.user_uuid.to_string(),
+                    aud: "authenticated".to_string(),
+                    role: Some("authenticated".to_string()),
                     email: auth_result.user_email,
+                    phone: validated_phone.clone(),
                     created_at: auth_result.user_created_at,
                     updated_at: auth_result.user_updated_at,
                     user_metadata: auth_result.user_metadata,
+                    app_metadata: serde_json::json!({}),
+                    email_confirmed_at: Some(auth_result.user_created_at.clone()),
+                    phone_confirmed_at: Some(auth_result.user_created_at.clone()),
+                    confirmation_sent_at: None,
+                    recovery_sent_at: None,
+                    email_change_sent_at: None,
+                    new_email: None,
+                    invited_at: None,
+                    action_link: None,
+                    email_change: None,
+                    phone_change: None,
+                    phone_change_sent_at: None,
+                    confirmed_at: Some(auth_result.user_created_at.clone()),
+                    email_change_confirm_status: None,
+                    banned_until: None,
+                    deleted_at: None,
                 },
                 provider_access_token: None,
                 provider_refresh_token: None,
