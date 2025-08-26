@@ -156,7 +156,7 @@ pub async fn find_or_create_user_by_phone(
     .bind(&fake_email)
     .bind(&format!("用户{}", &phone[phone.len() - 4..])) // 默认昵称：用户+手机号后4位
     .bind(phone)
-    .bind(phone_metadata)
+    .bind(&phone_metadata)
     .execute(&mut *tx)
     .await?;
     
@@ -202,7 +202,9 @@ pub async fn find_or_create_user_by_phone(
         name: user_name,
         created_at: now.to_rfc3339(),
         updated_at: now.to_rfc3339(),
-        metadata: phone_metadata,
+        metadata: serde_json::json!({
+            "phone_number": phone
+        }),
     };
     
     Ok((user_info, true))
