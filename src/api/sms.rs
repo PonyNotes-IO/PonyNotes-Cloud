@@ -43,9 +43,24 @@ pub struct PhoneLoginRequest {
 #[derive(Serialize, Debug)]
 pub struct PhoneLoginResponse {
     pub access_token: String,
+    pub token_type: String,
+    pub expires_in: i64,
+    pub expires_at: i64,
     pub refresh_token: String,
-    pub user_uuid: String,
-    pub is_new_user: bool,
+    pub user: PhoneLoginUser,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_access_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_refresh_token: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct PhoneLoginUser {
+    pub id: String,
+    pub email: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub user_metadata: serde_json::Value,
 }
 
 pub fn sms_scope() -> Scope {
@@ -168,9 +183,19 @@ async fn phone_login_handler(
         Ok(auth_result) => {
             let response = PhoneLoginResponse {
                 access_token: auth_result.access_token,
+                token_type: "bearer".to_string(),
+                expires_in: 3600, // 1 hour
+                expires_at: chrono::Utc::now().timestamp() + 3600,
                 refresh_token: auth_result.refresh_token,
-                user_uuid: auth_result.user_uuid.to_string(),
-                is_new_user: auth_result.is_new_user,
+                user: PhoneLoginUser {
+                    id: auth_result.user_uid.to_string(),
+                    email: auth_result.user_email,
+                    created_at: auth_result.user_created_at,
+                    updated_at: auth_result.user_updated_at,
+                    user_metadata: auth_result.user_metadata,
+                },
+                provider_access_token: None,
+                provider_refresh_token: None,
             };
             
             info!(

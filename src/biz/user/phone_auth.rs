@@ -16,20 +16,38 @@ use crate::state::AppState;
 #[derive(Debug)]
 pub struct PhoneAuthResult {
     pub user_uuid: Uuid,
+    pub user_uid: i64,
+    pub user_email: String,
+    pub user_name: String,
+    pub user_created_at: String,
+    pub user_updated_at: String,
     pub access_token: String,
     pub refresh_token: String,
     pub is_new_user: bool,
+    pub user_metadata: serde_json::Value,
+}
+
+/// 用户信息结构体
+#[derive(Debug)]
+pub struct UserInfo {
+    pub uuid: Uuid,
+    pub uid: i64,
+    pub email: String,
+    pub name: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub metadata: serde_json::Value,
 }
 
 /// 通过手机号查找或创建用户
 pub async fn find_or_create_user_by_phone(
     state: &AppState,
     phone: &str,
-) -> Result<(Uuid, bool), AppError> {
+) -> Result<(UserInfo, bool), AppError> {
     // 首先尝试查找现有用户
     let existing_user = sqlx::query(
         r#"
-        SELECT uuid, uid, email, name, created_at
+        SELECT uuid, uid, email, name, created_at, updated_at, metadata
         FROM af_user
         WHERE phone = $1 AND deleted_at IS NULL
         "#
@@ -41,23 +59,34 @@ pub async fn find_or_create_user_by_phone(
     if let Some(user) = existing_user {
         let uuid: Uuid = user.try_get("uuid")?;
         let uid: i64 = user.try_get("uid")?;
+        let email: String = user.try_get("email")?;
+        let name: String = user.try_get("name")?;
+        let created_at: chrono::DateTime<chrono::Utc> = user.try_get("created_at")?;
+        let updated_at: chrono::DateTime<chrono::Utc> = user.try_get("updated_at")?;
+        let mut metadata: serde_json::Value = user.try_get("metadata").unwrap_or_else(|_| serde_json::json!({}));
         
         // 确保现有用户的metadata也包含手机号信息
-        let phone_metadata = serde_json::json!({
-            "phone_number": phone
-        });
-        
-        sqlx::query(
-            r#"
-            UPDATE af_user
-            SET metadata = $1
-            WHERE uid = $2 AND (metadata IS NULL OR NOT metadata ? 'phone_number')
-            "#
-        )
-        .bind(phone_metadata)
-        .bind(uid)
-        .execute(&state.pg_pool)
-        .await?;
+        if !metadata.as_object().map_or(false, |m| m.contains_key("phone_number")) {
+            if let Some(obj) = metadata.as_object_mut() {
+                obj.insert("phone_number".to_string(), serde_json::Value::String(phone.to_string()));
+            } else {
+                metadata = serde_json::json!({
+                    "phone_number": phone
+                });
+            }
+            
+            sqlx::query(
+                r#"
+                UPDATE af_user
+                SET metadata = $1
+                WHERE uid = $2
+                "#
+            )
+            .bind(&metadata)
+            .bind(uid)
+            .execute(&state.pg_pool)
+            .await?;
+        }
         
         // 检查现有用户是否有完整的工作区初始化
         let needs_workspace_init = check_user_needs_workspace_init(state, uid, &uuid).await?;
@@ -67,7 +96,18 @@ pub async fn find_or_create_user_by_phone(
         }
         
         info!("Found existing user for phone: {}", phone);
-        return Ok((uuid, false));
+        
+        let user_info = UserInfo {
+            uuid,
+            uid,
+            email,
+            name,
+            created_at: created_at.to_rfc3339(),
+            updated_at: updated_at.to_rfc3339(),
+            metadata,
+        };
+        
+        return Ok((user_info, false));
     }
 
     // 用户不存在，创建新用户
@@ -153,7 +193,19 @@ pub async fn find_or_create_user_by_phone(
     txn2.commit().await?;
 
     info!("Created new user with UUID: {} for phone: {} and initialized workspace", user_uuid, phone);
-    Ok((user_uuid, true))
+    
+    let user_name = format!("用户{}", &phone[phone.len() - 4..]);
+    let user_info = UserInfo {
+        uuid: user_uuid,
+        uid,
+        email: fake_email,
+        name: user_name,
+        created_at: now.to_rfc3339(),
+        updated_at: now.to_rfc3339(),
+        metadata: phone_metadata,
+    };
+    
+    Ok((user_info, true))
 }
 
 /// 生成访问令牌
@@ -245,21 +297,27 @@ pub async fn phone_login(
     }
 
     // 2. 查找或创建用户
-    let (user_uuid, is_new_user) = find_or_create_user_by_phone(state, phone).await?;
+    let (user_info, is_new_user) = find_or_create_user_by_phone(state, phone).await?;
 
     // 3. 生成访问令牌
-    let (access_token, refresh_token) = generate_access_token_for_user(state, user_uuid).await?;
+    let (access_token, refresh_token) = generate_access_token_for_user(state, user_info.uuid).await?;
 
     info!(
         "Phone login successful for user: {}, is_new: {}",
-        user_uuid, is_new_user
+        user_info.uuid, is_new_user
     );
 
     Ok(PhoneAuthResult {
-        user_uuid,
+        user_uuid: user_info.uuid,
+        user_uid: user_info.uid,
+        user_email: user_info.email,
+        user_name: user_info.name,
+        user_created_at: user_info.created_at,
+        user_updated_at: user_info.updated_at,
         access_token,
         refresh_token,
         is_new_user,
+        user_metadata: user_info.metadata,
     })
 }
 
